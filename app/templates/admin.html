@@ -3,6 +3,6 @@
 当前登录用户：{{ username }}
 <form method="post" action="/auth/logout">
 	{% module xsrf_form_html() %}
-	<button type="submint">退出</button>
+	<button type="submit">退出</button>
 </form>
 {% end %}

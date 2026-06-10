@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/user.css">
+</head>
+<body>
+
+<nav class="user-nav">
+    <div class="logo">&#x1F3EB; 校园二手</div>
+    <div class="nav-links">
+        <a href="/home">我的主页</a>
+        <a href="/goods/browse">商品浏览</a>
+        <a href="/goods/publish">发布商品</a>
+        <a href="/chat/list">消息</a>
+        <a href="/transaction/list">交易记录</a>
+        <a href="/report/list">我的举报</a>
+    </div>
+    <div class="user-info">
+        <span>{{ username }}</span>
+        <a href="/auth/logout">退出</a>
+    </div>
+</nav>
+
+<div class="page-container">
+    <!-- 统计数据 -->
+    <div class="stats-grid">
+        <div class="stat-item">
+            <div class="num">{{ stats['goods_count'] }}</div>
+            <div class="label">我的商品</div>
+        </div>
+        <div class="stat-item">
+            <div class="num">{{ stats['buy_count'] }}</div>
+            <div class="label">购买记录</div>
+        </div>
+        <div class="stat-item">
+            <div class="num">{{ stats['sell_count'] }}</div>
+            <div class="label">卖出的</div>
+        </div>
+    </div>
+
+    <!-- 发布的商品 -->
+    <div class="card">
+        <h3>我的商品</h3>
+        {% if goods_list %}
+        <div class="goods-grid">
+            {% for g in goods_list %}
+            <div class="goods-card" onclick="location.href='/goods/detail/{{ g["id"] }}'">
+                <div class="img-wrap">
+                    {% if g["image"] %}
+                    <img src="{{ g["image"] }}" alt="{{ g["title"] }}">
+                    {% else %}
+                    <span style="color:#ccc;font-size:40px;">&#x1F4F1;</span>
+                    {% end %}
+                </div>
+                <div class="info">
+                    <div class="title">{{ g["title"][:10] }}{% if len(g["title"]) > 10 %}...{% end %}</div>
+                    <div class="price">¥{{ "%.2f" % g["price"] }}</div>
+                    <div class="time">{{ g["create_at"] }}</div>
+                </div>
+            </div>
+            {% end %}
+        </div>
+        {% else %}
+        <p style="color:#999;text-align:center;padding:40px 0;">还没有发布商品，<a href="/goods/publish">去发布</a></p>
+        {% end %}
+    </div>
+
+    <!-- 交易记录 -->
+    <div class="card">
+        <h3>最近交易</h3>
+        {% if txn_list %}
+        <table class="txn-table">
+            <tr>
+                <th>商品</th>
+                <th>类型</th>
+                <th>金额</th>
+                <th>时间</th>
+                <th>操作</th>
+            </tr>
+            {% for t in txn_list %}
+            <tr>
+                <td>{{ t["goods_title"][:10] }}{% if len(t["goods_title"]) > 10 %}...{% end %}</td>
+                <td>{% if t["buyer_id"] == stats.get('user_id', 0) %}购买{% else %}卖出{% end %}</td>
+                <td>¥{{ "%.2f" % t["price"] }}</td>
+                <td style="font-size:13px;color:#999;">{{ t["create_at"] }}</td>
+                <td>
+                    <a href="/goods/detail/{{ t['goods_id'] }}" class="btn btn-outline" style="padding:4px 12px;font-size:12px;">查看</a>
+                </td>
+            </tr>
+            {% end %}
+        </table>
+        {% else %}
+        <p style="color:#999;text-align:center;padding:40px 0;">暂无交易记录</p>
+        {% end %}
+    </div>
+</div>
+
+</body>
+</html>

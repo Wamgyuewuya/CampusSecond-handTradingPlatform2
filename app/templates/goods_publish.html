@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/user.css">
+</head>
+<body>
+
+<nav class="user-nav">
+    <div class="logo">&#x1F3EB; 校园二手</div>
+    <div class="nav-links">
+        <a href="/home">我的主页</a>
+        <a href="/goods/browse">商品浏览</a>
+        <a href="/goods/publish">发布商品</a>
+        <a href="/chat/list">消息</a>
+        <a href="/transaction/list">交易记录</a>
+        <a href="/report/list">我的举报</a>
+    </div>
+    <div class="user-info">
+        <span>{{ username }}</span>
+        <a href="/auth/logout">退出</a>
+    </div>
+</nav>
+
+<div class="page-container">
+    <div class="card form-card">
+        <h3>发布商品</h3>
+        {% if error %}
+        <div class="auth-error" style="margin-bottom:16px;">{{ error }}</div>
+        {% end %}
+        <form method="post" action="/goods/publish" enctype="multipart/form-data">
+            {% module xsrf_form_html() %}
+            <div class="form-group">
+                <label>商品图片 *</label>
+                <input type="file" name="image" accept="image/*" required>
+            </div>
+            <div class="form-group">
+                <label>商品名称 *</label>
+                <input type="text" name="title" placeholder="请输入商品名称" required>
+            </div>
+            <div class="form-group">
+                <label>商品描述</label>
+                <textarea name="description" placeholder="请输入商品描述"></textarea>
+            </div>
+            <div class="form-group">
+                <label>价格 *</label>
+                <input type="number" name="price" step="0.01" min="0.01" placeholder="0.00" required>
+            </div>
+            <button type="submit" class="btn btn-primary">提交审核</button>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>

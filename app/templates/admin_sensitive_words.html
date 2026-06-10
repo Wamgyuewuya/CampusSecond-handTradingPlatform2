@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/lib/layui/css/layui.css">
+    <style>
+        body { padding: 15px; background: #f2f2f2; }
+        .search-box { margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="search-box">
+    <div class="layui-btn-group">
+        <button class="layui-btn layui-btn-sm layui-btn-normal" id="btn-add">
+            <i class="layui-icon layui-icon-add-1"></i> 新增敏感词
+        </button>
+    </div>
+</div>
+
+<table id="word-table" lay-filter="word-table"></table>
+
+<!-- 新增/编辑弹窗 -->
+<script type="text/html" id="form-tpl">
+<form class="layui-form" lay-filter="word-form" style="padding:20px 20px 0;">
+    <input type="hidden" name="id">
+    <div class="layui-form-item">
+        <label class="layui-form-label">敏感词</label>
+        <div class="layui-input-block">
+            <input type="text" name="word" required lay-verify="required"
+                   placeholder="请输入敏感词" class="layui-input">
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">替换为</label>
+        <div class="layui-input-block">
+            <input type="text" name="replacement" value="***"
+                   placeholder="默认***" class="layui-input">
+        </div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;">
+        <button class="layui-btn" lay-submit lay-filter="form-submit">提交</button>
+        <button type="button" class="layui-btn layui-btn-primary" id="form-cancel">取消</button>
+    </div>
+</form>
+</script>
+
+<script src="/static/lib/layui/layui.js"></script>
+<script>
+function getCookie(name) {
+    var r = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+    return r ? r[1] : '';
+}
+
+layui.use(['table', 'layer', 'form'], function(){
+    var table = layui.table;
+    var layer = layui.layer;
+    var form = layui.form;
+    var $ = layui.$;
+
+    table.render({
+        elem: '#word-table',
+        url: '/admin/api/sensitive-words',
+        page: { limit: 20 },
+        limits: [20, 50, 100],
+        cols: [[
+            { type: 'numbers', title: '序号', width: 70 },
+            { field: 'id', title: 'ID', width: 60, sort: true },
+            { field: 'word', title: '敏感词', minWidth: 160 },
+            { field: 'replacement', title: '替换为', width: 120, align: 'center' },
+            { field: 'create_at', title: '创建时间', width: 180, sort: true },
+            { title: '操作', width: 170, align: 'center',
+              toolbar: '#word-toolbar' }
+        ]],
+        response: { statusCode: 0 },
+        parseData: function(res){
+            return { code: res.code, count: res.count, data: res.data };
+        }
+    });
+
+    table.on('tool(word-table)', function(obj){
+        var data = obj.data;
+        if (obj.event === 'edit') {
+            openForm('编辑敏感词', data);
+        } else if (obj.event === 'delete') {
+            layer.confirm('确定删除敏感词「' + data.word + '」吗？', function(idx){
+                $.ajax({
+                    url: '/admin/api/sensitive-word/delete',
+                    type: 'POST',
+                    data: { id: data.id },
+                    headers: { 'X-Xsrftoken': getCookie('_xsrf') },
+                    success: function(res){
+                        if (res.code === 0) {
+                            layer.msg('删除成功');
+                            table.reload('word-table');
+                        } else {
+                            layer.msg(res.msg, {icon: 5});
+                        }
+                    }
+                });
+                layer.close(idx);
+            });
+        }
+    });
+
+    $('#btn-add').on('click', function(){
+        openForm('新增敏感词', null);
+    });
+
+    function openForm(title, data){
+        var index = layer.open({
+            type: 1,
+            title: title,
+            area: ['480px', '320px'],
+            content: $('#form-tpl').html(),
+            success: function(layero){
+                if (data) {
+                    form.val('word-form', {
+                        id: data.id,
+                        word: data.word,
+                        replacement: data.replacement
+                    });
+                }
+                layero.find('#form-cancel').on('click', function(){
+                    layer.close(index);
+                });
+                form.on('submit(form-submit)', function(fd){
+                    var url = data ? '/admin/api/sensitive-word/update' : '/admin/api/sensitive-word/create';
+                    $.ajax({
+                        url: url,
+                        type: 'POST',
+                        data: fd.field,
+                        headers: { 'X-Xsrftoken': getCookie('_xsrf') },
+                        success: function(res){
+                            if (res.code === 0) {
+                                layer.msg('操作成功');
+                                layer.close(index);
+                                table.reload('word-table');
+                            } else {
+                                layer.msg(res.msg, {icon: 5});
+                            }
+                        }
+                    });
+                    return false;
+                });
+            }
+        });
+    }
+});
+</script>
+
+<script type="text/html" id="word-toolbar">
+    <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+    <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="delete">删除</a>
+</script>
+
+</body>
+</html>

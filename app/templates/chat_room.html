@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/user.css">
+</head>
+<body>
+
+<nav class="user-nav">
+    <div class="logo">&#x1F3EB; 校园二手</div>
+    <div class="nav-links">
+        <a href="/home">我的主页</a>
+        <a href="/goods/browse">商品浏览</a>
+        <a href="/goods/publish">发布商品</a>
+        <a href="/chat/list" style="color:#4a6cf7;font-weight:500;">消息</a>
+        <a href="/transaction/list">交易记录</a>
+        <a href="/report/list">我的举报</a>
+    </div>
+    <div class="user-info">
+        <span>{{ username }}</span>
+        <a href="/auth/logout">退出</a>
+    </div>
+</nav>
+
+<div class="page-container" style="height:calc(100vh - 56px - 48px);">
+    <div class="chat-container">
+        <div class="chat-sidebar card" style="height:100%;overflow-y:auto;">
+            <h3 style="padding:0 0 12px;font-size:14px;border-bottom:1px solid #f0f0f0;">消息列表</h3>
+            <div id="conv-list"></div>
+        </div>
+        <div class="chat-main card" style="height:100%;">
+            <div class="chat-header">
+                与 <strong>{{ other_user["username"] }}</strong> 聊天中
+                <span style="font-size:12px;color:#999;margin-left:12px;">消息实时更新</span>
+                <button style="margin-left:auto;padding:4px 12px;font-size:12px;background:#ff5722;color:#fff;border:none;border-radius:4px;cursor:pointer;" onclick="showReportForm({{ other_user['id'] }}, 'user')">举报</button>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                {% for m in messages %}
+                <div class="chat-msg {{ 'mine' if m['from_user_id'] == current_user_id else 'other' }}">
+                    {{ m["content"] }}
+                    <div class="time">{{ m["create_at"] }}</div>
+                </div>
+                {% end %}
+            </div>
+            <div class="chat-input-bar">
+                <input type="text" id="msg-input" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendMsg();">
+                <button class="btn btn-primary" onclick="sendMsg();">发送</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 举报弹窗 -->
+<div id="report-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:24px;width:400px;max-width:90%;">
+        <h3 style="margin-bottom:12px;">举报用户</h3>
+        <select id="report-reason" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px;">
+            <option value="">请选择举报原因</option>
+            <option value="骚扰">骚扰</option>
+            <option value="诈骗">诈骗</option>
+            <option value="违规内容">违规内容</option>
+            <option value="冒充他人">冒充他人</option>
+            <option value="其他">其他</option>
+        </select>
+        <textarea id="report-detail" placeholder="详细说明（选填）" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;min-height:80px;resize:vertical;box-sizing:border-box;"></textarea>
+        <div style="margin-top:12px;display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn btn-outline" onclick="closeReportForm()">取消</button>
+            <button class="btn btn-primary" onclick="submitReport()">提交举报</button>
+        </div>
+    </div>
+</div>
+
+<script>
+var otherUserId = {{ other_user['id'] }};
+var currentUserId = {{ current_user_id }};
+
+function getCookie(name) {
+    var r = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+    return r ? r[1] : '';
+}
+
+function sendMsg(){
+    var input = document.getElementById('msg-input');
+    var content = input.value.trim();
+    if (!content) return;
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/chat/send', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.setRequestHeader('X-Xsrftoken', getCookie('_xsrf'));
+    xhr.onload = function(){
+        input.value = '';
+        loadMessages();
+        loadConvList();
+    };
+    xhr.send('to_user_id=' + otherUserId + '&content=' + encodeURIComponent(content));
+}
+
+function loadMessages(){
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/chat/messages?other_user_id=' + otherUserId, true);
+    xhr.onload = function(){
+        var res = JSON.parse(xhr.responseText);
+        var container = document.getElementById('chat-messages');
+        var html = '';
+        for (var i = 0; i < res.data.length; i++){
+            var m = res.data[i];
+            var cls = m.from_user_id == currentUserId ? 'mine' : 'other';
+            html += '<div class="chat-msg ' + cls + '">' + m.content + '<div class="time">' + m.create_at + '</div></div>';
+        }
+        container.innerHTML = html;
+        container.scrollTop = container.scrollHeight;
+    };
+    xhr.send();
+}
+
+function loadConvList(){
+    // 会话列表通过页面加载时已经渲染好，这里跳转回列表页
+}
+
+// 每3秒刷新消息
+setInterval(loadMessages, 3000);
+
+// 初始滚动到底部
+window.onload = function(){
+    var container = document.getElementById('chat-messages');
+    container.scrollTop = container.scrollHeight;
+};
+
+// ===== 举报功能 =====
+var reportTargetId = 0;
+var reportTargetType = '';
+
+function showReportForm(targetId, targetType) {
+    reportTargetId = targetId;
+    reportTargetType = targetType;
+    var modal = document.getElementById('report-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeReportForm() {
+    var modal = document.getElementById('report-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function submitReport() {
+    var select = document.getElementById('report-reason');
+    var textarea = document.getElementById('report-detail');
+    var reason = select ? select.value : '';
+    var detail = textarea ? textarea.value : '';
+    if (!reason) { alert('请选择举报原因'); return; }
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/report/create', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.setRequestHeader('X-Xsrftoken', getCookie('_xsrf'));
+    xhr.onload = function() {
+        var res = JSON.parse(xhr.responseText);
+        alert(res.msg);
+        if (res.code === 0) closeReportForm();
+    };
+    xhr.send('target_type=' + reportTargetType + '&target_id=' + reportTargetId + '&reason=' + encodeURIComponent(reason) + '&detail=' + encodeURIComponent(detail));
+}
+</script>
+</body>
+</html>

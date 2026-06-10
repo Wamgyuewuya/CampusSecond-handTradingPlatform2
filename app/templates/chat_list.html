@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/user.css">
+</head>
+<body>
+
+<nav class="user-nav">
+    <div class="logo">&#x1F3EB; 校园二手</div>
+    <div class="nav-links">
+        <a href="/home">我的主页</a>
+        <a href="/goods/browse">商品浏览</a>
+        <a href="/goods/publish">发布商品</a>
+        <a href="/chat/list" style="color:#4a6cf7;font-weight:500;">消息</a>
+        <a href="/transaction/list">交易记录</a>
+        <a href="/report/list">我的举报</a>
+    </div>
+    <div class="user-info">
+        <span>{{ username }}</span>
+        <a href="/auth/logout">退出</a>
+    </div>
+</nav>
+
+<div class="page-container">
+    <div class="card">
+        <h3>消息列表</h3>
+        {% if conversations %}
+        <div style="margin-top:12px;">
+            {% for c in conversations %}
+            <a href="/chat/{{ c['other_user_id'] }}" style="display:block;padding:16px;border-bottom:1px solid #f0f0f0;text-decoration:none;color:#333;transition:background 0.2s;" onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background=''">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <strong>{{ c["other_username"] }}</strong>
+                        {% if c["unread"] > 0 %}
+                        <span class="unread">{{ c["unread"] }}</span>
+                        {% end %}
+                    </div>
+                    <span style="font-size:12px;color:#999;">{{ c["last_time"] }}</span>
+                </div>
+                <div style="font-size:13px;color:#999;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    {% if c["from_user_id"] == current_user_id %}我：{% end %}{{ c["last_message"] }}
+                </div>
+            </a>
+            {% end %}
+        </div>
+        {% else %}
+        <p style="text-align:center;padding:60px 0;color:#999;">暂无消息</p>
+        {% end %}
+    </div>
+</div>
+
+</body>
+</html>

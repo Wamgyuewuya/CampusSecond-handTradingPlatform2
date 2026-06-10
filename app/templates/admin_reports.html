@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/lib/layui/css/layui.css">
+    <style>
+        body { padding: 15px; background: #f2f2f2; }
+        .search-box { margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="search-box">
+    <form class="layui-form" lay-filter="search-form">
+        <div class="layui-inline">
+            <select name="status" lay-filter="status-filter">
+                <option value="">全部状态</option>
+                <option value="pending">未处理</option>
+                <option value="resolved">已处理</option>
+            </select>
+        </div>
+    </form>
+</div>
+
+<table id="report-table" lay-filter="report-table"></table>
+
+<!-- 处理弹窗模板 -->
+<script type="text/html" id="handle-tpl">
+<form class="layui-form" style="padding:20px 20px 0;">
+    <input type="hidden" name="id">
+    <div class="layui-form-item">
+        <label class="layui-form-label">举报详情</label>
+        <div class="layui-input-block" id="report-detail" style="padding-top:9px;color:#666;"></div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">处理意见</label>
+        <div class="layui-input-block">
+            <textarea name="handle_note" required lay-verify="required"
+                      placeholder="请输入处理意见" class="layui-textarea"></textarea>
+        </div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;">
+        <button class="layui-btn" lay-submit lay-filter="handle-submit">提交处理</button>
+        <button type="button" class="layui-btn layui-btn-primary" id="handle-cancel">取消</button>
+    </div>
+</form>
+</script>
+
+<script src="/static/lib/layui/layui.js"></script>
+<script>
+function getCookie(name) {
+    var r = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+    return r ? r[1] : '';
+}
+
+layui.use(['table', 'layer', 'form'], function(){
+    var table = layui.table;
+    var layer = layui.layer;
+    var form = layui.form;
+    var $ = layui.$;
+
+    function statusHtml(status){
+        if (status === 'pending') return '<span class="layui-badge layui-bg-orange">未处理</span>';
+        return '<span class="layui-badge layui-bg-green">已处理</span>';
+    }
+
+    table.render({
+        elem: '#report-table',
+        url: '/admin/api/reports',
+        page: { limit: 20 },
+        limits: [20, 50, 100],
+        where: { status: '' },
+        cols: [[
+            { type: 'numbers', title: '序号', width: 70 },
+            { field: 'id', title: 'ID', width: 60 },
+            { field: 'reporter_name', title: '举报人', width: 120 },
+            { field: 'target_type', title: '举报类型', width: 100 },
+            { field: 'reason', title: '举报原因', minWidth: 160 },
+            { field: 'status', title: '状态', width: 90, align: 'center',
+              templet: function(d){ return statusHtml(d.status); }
+            },
+            { field: 'create_at', title: '举报时间', width: 170 },
+            { title: '操作', width: 120, align: 'center',
+              templet: function(d){
+                  if (d.status !== 'pending') return '<span style="color:#ccc;">-</span>';
+                  return '<a class="layui-btn layui-btn-xs" lay-event="handle">处理</a>';
+              }
+            }
+        ]],
+        response: { statusCode: 0 },
+        parseData: function(res){
+            return { code: res.code, count: res.count, data: res.data };
+        }
+    });
+
+    form.on('select(status-filter)', function(obj){
+        table.reload('report-table', {
+            where: { status: obj.value },
+            page: { curr: 1 }
+        });
+    });
+
+    table.on('tool(report-table)', function(obj){
+        if (obj.event === 'handle') {
+            openHandle(obj.data);
+        }
+    });
+
+    function openHandle(data){
+        var index = layer.open({
+            type: 1,
+            title: '处理举报 #' + data.id,
+            area: ['520px', '380px'],
+            content: $('#handle-tpl').html(),
+            success: function(layero){
+                layero.find('#report-detail').text(
+                    '举报类型: ' + data.target_type
+                    + ' | 举报原因: ' + data.reason
+                    + (data.detail ? ' | 详情: ' + data.detail : '')
+                );
+                layero.find('#handle-cancel').on('click', function(){
+                    layer.close(index);
+                });
+                form.on('submit(handle-submit)', function(fd){
+                    $.ajax({
+                        url: '/admin/api/report/handle',
+                        type: 'POST',
+                        data: { id: data.id, handle_note: fd.field.handle_note },
+                        headers: { 'X-Xsrftoken': getCookie('_xsrf') },
+                        success: function(res){
+                            if (res.code === 0) {
+                                layer.msg('处理成功');
+                                layer.close(index);
+                                table.reload('report-table');
+                            } else {
+                                layer.msg(res.msg, {icon: 5});
+                            }
+                        }
+                    });
+                    return false;
+                });
+            }
+        });
+    }
+});
+</script>
+</body>
+</html>

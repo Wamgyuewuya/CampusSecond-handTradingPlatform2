@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/lib/layui/css/layui.css">
+    <link rel="stylesheet" href="/static/css/user.css">
+    <style>
+        body { background: #f5f7fa; }
+        .page-container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    </style>
+</head>
+<body>
+
+<nav class="user-nav" style="margin-bottom:0;">
+    <div class="logo">&#x1F3EB; 校园二手</div>
+    <div class="nav-links">
+        <a href="/home">我的主页</a>
+        <a href="/goods/browse" style="color:#4a6cf7;font-weight:500;">商品浏览</a>
+        <a href="/goods/publish">发布商品</a>
+        <a href="/chat/list">消息</a>
+        <a href="/transaction/list">交易记录</a>
+        <a href="/report/list">我的举报</a>
+    </div>
+    <div class="user-info">
+        <span>{% if current_user %}{{ current_user }}{% else %}游客{% end %}</span>
+        {% if current_user %}
+        <a href="/auth/logout">退出</a>
+        {% else %}
+        <a href="/auth/login">登录</a>
+        {% end %}
+    </div>
+</nav>
+
+<div class="page-container">
+    <div class="search-bar">
+        <input type="text" id="search-input" placeholder="搜索商品名称..." onkeydown="if(event.key==='Enter')searchGoods();">
+        <button class="btn btn-primary" onclick="searchGoods();">搜索</button>
+    </div>
+
+    <div id="goods-list" class="goods-grid"></div>
+    <div id="pagination" style="text-align:center;margin-top:20px;"></div>
+</div>
+
+<script src="/static/lib/layui/layui.js"></script>
+<script>
+function getCookie(name) {
+    var r = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+    return r ? r[1] : '';
+}
+
+var currentPage = 1;
+
+function loadGoods(page, keyword){
+    currentPage = page;
+    var params = 'page=' + page + '&limit=20';
+    if (keyword) params += '&keyword=' + encodeURIComponent(keyword);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/goods/list?' + params, true);
+    xhr.onload = function(){
+        var res = JSON.parse(xhr.responseText);
+        renderGoods(res.data);
+        renderPagination(res.count, res.page);
+    };
+    xhr.send();
+}
+
+function renderGoods(items){
+    var html = '';
+    if (items.length === 0){
+        html = '<p style="grid-column:1/-1;text-align:center;padding:80px 0;color:#999;">暂无商品</p>';
+    } else {
+        for (var i = 0; i < items.length; i++){
+            var g = items[i];
+            var titleDisplay = g.title.length > 10 ? g.title.substring(0,10) + '...' : g.title;
+            html += '<div class="goods-card">';
+            html += '<div class="img-wrap" onclick="location.href=\'/goods/detail/' + g.id + '\'">';
+            if (g.image) {
+                html += '<img src="' + g.image + '" alt="' + g.title + '">';
+            } else {
+                html += '<span style="color:#ccc;font-size:40px;">&#x1F4F1;</span>';
+            }
+            html += '</div>';
+            html += '<div class="info">';
+            html += '<div class="title" title="' + g.title + '" onclick="location.href=\'/goods/detail/' + g.id + '\'">' + titleDisplay + '</div>';
+            html += '<div class="price">¥' + parseFloat(g.price).toFixed(2) + '</div>';
+            html += '<div class="time">' + g.create_at + '</div>';
+            html += '<button class="btn btn-success" style="margin-top:8px;width:100%;padding:6px;font-size:13px;" onclick="buyGoods(' + g.id + ')">购买</button>';
+            html += '</div></div>';
+        }
+    }
+    document.getElementById('goods-list').innerHTML = html;
+}
+
+function renderPagination(total, page){
+    var totalPages = Math.ceil(total / 20) || 1;
+    var html = '<div class="layui-box" style="display:inline-block;">';
+    html += '<a href="javascript:;" onclick="loadGoods(1)" style="margin:0 4px;padding:6px 12px;border:1px solid #ddd;border-radius:4px;text-decoration:none;color:#333;">首页</a>';
+    if (page > 1){
+        html += '<a href="javascript:;" onclick="loadGoods(' + (page-1) + ')" style="margin:0 4px;padding:6px 12px;border:1px solid #ddd;border-radius:4px;text-decoration:none;color:#333;">上一页</a>';
+    }
+    html += '<span style="margin:0 8px;color:#999;">第 ' + page + '/' + totalPages + ' 页</span>';
+    if (page < totalPages){
+        html += '<a href="javascript:;" onclick="loadGoods(' + (page+1) + ')" style="margin:0 4px;padding:6px 12px;border:1px solid #ddd;border-radius:4px;text-decoration:none;color:#333;">下一页</a>';
+    }
+    html += '<a href="javascript:;" onclick="loadGoods(' + totalPages + ')" style="margin:0 4px;padding:6px 12px;border:1px solid #ddd;border-radius:4px;text-decoration:none;color:#333;">末页</a>';
+    html += '<span style="margin-left:8px;color:#999;">共 ' + total + ' 件商品</span>';
+    html += '</div>';
+    document.getElementById('pagination').innerHTML = html;
+}
+
+function searchGoods(){
+    var keyword = document.getElementById('search-input').value.trim();
+    loadGoods(1, keyword);
+}
+
+function buyGoods(goodsId) {
+    if (!confirm('确定要购买该商品吗？')) return;
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/goods/buy', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.setRequestHeader('X-Xsrftoken', getCookie('_xsrf'));
+    xhr.onload = function() {
+        var res = JSON.parse(xhr.responseText);
+        alert(res.msg);
+        if (res.code === 0) loadGoods(currentPage, document.getElementById('search-input').value.trim());
+    };
+    xhr.send('goods_id=' + goodsId);
+}
+
+// 初始加载
+loadGoods(1, '');
+</script>
+</body>
+</html>

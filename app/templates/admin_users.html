@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/lib/layui/css/layui.css">
+    <style>
+        body { padding: 15px; background: #f2f2f2; }
+        .search-box { margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<!-- 搜索/工具栏 -->
+<div class="search-box">
+    <div class="layui-btn-group">
+        <button class="layui-btn layui-btn-sm layui-btn-normal" id="btn-add">
+            <i class="layui-icon layui-icon-add-1"></i> 新增用户
+        </button>
+    </div>
+</div>
+
+<!-- 数据表格 -->
+<table id="user-table" lay-filter="user-table"></table>
+
+<!-- 新增/编辑弹窗 -->
+<script type="text/html" id="form-tpl">
+<form class="layui-form" lay-filter="user-form" style="padding:20px 20px 0;">
+    <input type="hidden" name="id">
+    <div class="layui-form-item">
+        <label class="layui-form-label">用户名</label>
+        <div class="layui-input-block">
+            <input type="text" name="username" required lay-verify="required"
+                   placeholder="请输入用户名" class="layui-input">
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">密码</label>
+        <div class="layui-input-block">
+            <input type="password" name="password" placeholder="留空则不修改密码" class="layui-input">
+        </div>
+    </div>
+    <div class="layui-form-item" style="text-align:center;">
+        <button class="layui-btn" lay-submit lay-filter="form-submit">提交</button>
+        <button type="button" class="layui-btn layui-btn-primary" id="form-cancel">取消</button>
+    </div>
+</form>
+</script>
+
+<script src="/static/lib/layui/layui.js"></script>
+<script>
+// XSRF 支持：从 cookie 读取 _xsrf 值
+function getCookie(name) {
+    var r = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+    return r ? r[1] : '';
+}
+
+layui.use(['table', 'layer', 'form'], function(){
+    var table = layui.table;
+    var layer = layui.layer;
+    var form = layui.form;
+    var $ = layui.$;
+
+    // 渲染表格
+    table.render({
+        elem: '#user-table',
+        url: '/admin/api/users',
+        page: { limit: 20 },
+        limits: [20, 50, 100],
+        cols: [[
+            { type: 'numbers', title: '序号', width: 70 },
+            { field: 'id', title: 'ID', width: 70, sort: true },
+            { field: 'username', title: '用户名', minWidth: 140 },
+            { field: 'role_label', title: '权限', width: 110, align: 'center',
+              templet: function(d){
+                  return d.role === 'admin'
+                      ? '<span class="layui-badge layui-bg-blue">管理员</span>'
+                      : '<span class="layui-badge layui-bg-green">普通用户</span>';
+              }
+            },
+            { field: 'create_at', title: '创建时间', minWidth: 180, sort: true },
+            { title: '操作', width: 180, align: 'center',
+              templet: function(d){
+                  if (d.role === 'admin') {
+                      return '<span style="color:#ccc;">-</span>';
+                  }
+                  return '<a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>'
+                       + '<a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="delete">删除</a>';
+              }
+            }
+        ]],
+        response: {
+            statusCode: 0
+        },
+        parseData: function(res){
+            return {
+                code: res.code,
+                count: res.count,
+                data: res.data
+            };
+        }
+    });
+
+    // 操作栏模板
+    table.on('tool(user-table)', function(obj){
+        var data = obj.data;
+        if (obj.event === 'edit') {
+            openForm('编辑用户', data);
+        } else if (obj.event === 'delete') {
+            layer.confirm('确定删除用户「' + data.username + '」吗？', function(idx){
+                $.ajax({
+                    url: '/admin/api/user/delete',
+                    type: 'POST',
+                    data: { id: data.id },
+                    headers: { 'X-Xsrftoken': getCookie('_xsrf') },
+                    success: function(res){
+                        if (res.code === 0) {
+                            layer.msg('删除成功');
+                            table.reload('user-table');
+                        } else {
+                            layer.msg(res.msg, {icon: 5});
+                        }
+                    }
+                });
+                layer.close(idx);
+            });
+        }
+    });
+
+    // 新增按钮
+    $('#btn-add').on('click', function(){
+        openForm('新增用户', null);
+    });
+
+    // 打开表单弹窗
+    function openForm(title, data){
+        var index = layer.open({
+            type: 1,
+            title: title,
+            area: ['480px', '360px'],
+            content: $('#form-tpl').html(),
+            success: function(layero){
+                // 编辑模式：回填数据
+                if (data) {
+                    form.val('user-form', {
+                        id: data.id,
+                        username: data.username
+                    });
+                }
+                // 取消按钮
+                layero.find('#form-cancel').on('click', function(){
+                    layer.close(index);
+                });
+                // 表单提交
+                form.on('submit(form-submit)', function(fd){
+                    var url = data ? '/admin/api/user/update' : '/admin/api/user/create';
+                    $.ajax({
+                        url: url,
+                        type: 'POST',
+                        data: fd.field,
+                        headers: { 'X-Xsrftoken': getCookie('_xsrf') },
+                        success: function(res){
+                            if (res.code === 0) {
+                                layer.msg('操作成功');
+                                layer.close(index);
+                                table.reload('user-table');
+                            } else {
+                                layer.msg(res.msg, {icon: 5});
+                            }
+                        }
+                    });
+                    return false;
+                });
+            }
+        });
+    }
+});
+</script>
+
+</body>
+</html>

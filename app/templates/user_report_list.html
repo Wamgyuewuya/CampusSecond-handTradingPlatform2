@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/user.css">
+</head>
+<body>
+
+<nav class="user-nav">
+    <div class="logo">&#x1F3EB; 校园二手</div>
+    <div class="nav-links">
+        <a href="/home">我的主页</a>
+        <a href="/goods/browse">商品浏览</a>
+        <a href="/goods/publish">发布商品</a>
+        <a href="/chat/list">消息</a>
+        <a href="/transaction/list">交易记录</a>
+        <a href="/report/list" style="color:#ff5722;font-weight:500;">我的举报</a>
+    </div>
+    <div class="user-info">
+        <span>{{ username }}</span>
+        <a href="/auth/logout">退出</a>
+    </div>
+</nav>
+
+<div class="page-container">
+    <h2 style="margin-bottom:16px;">我的举报</h2>
+    <div class="card">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>举报类型</th>
+                    <th>举报原因</th>
+                    <th>详细说明</th>
+                    <th>状态</th>
+                    <th>处理人</th>
+                    <th>处理备注</th>
+                    <th>举报时间</th>
+                    <th>处理时间</th>
+                </tr>
+            </thead>
+            <tbody id="report-list"></tbody>
+        </table>
+        <div id="pagination" style="margin-top:16px;text-align:center;"></div>
+        <p id="empty-msg" style="text-align:center;padding:30px 0;color:#999;display:none;">暂无举报记录</p>
+    </div>
+</div>
+
+<script>
+var currentPage = 1;
+
+function getCookie(name) {
+    var r = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+    return r ? r[1] : '';
+}
+
+function loadReports(page) {
+    page = page || 1;
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/report/list?page=' + page + '&page_size=20', true);
+    xhr.setRequestHeader('X-Xsrftoken', getCookie('_xsrf'));
+    xhr.onload = function() {
+        var res = JSON.parse(xhr.responseText);
+        var tbody = document.getElementById('report-list');
+        var empty = document.getElementById('empty-msg');
+        var pagination = document.getElementById('pagination');
+        tbody.innerHTML = '';
+        if (res.data.length === 0) {
+            empty.style.display = 'block';
+            pagination.innerHTML = '';
+            return;
+        }
+        empty.style.display = 'none';
+        var html = '';
+        for (var i = 0; i < res.data.length; i++) {
+            var r = res.data[i];
+            var statusMap = { 'pending': '待处理', 'resolved': '已处理' };
+            var typeMap = { 'goods': '商品', 'user': '用户' };
+            var statusHtml = r.status === 'pending'
+                ? '<span style="color:#ffb800;">' + (statusMap[r.status] || r.status) + '</span>'
+                : '<span style="color:#16baaa;">' + (statusMap[r.status] || r.status) + '</span>';
+            html += '<tr>';
+            html += '<td>' + r.id + '</td>';
+            html += '<td>' + (typeMap[r.target_type] || r.target_type) + '</td>';
+            html += '<td>' + r.reason + '</td>';
+            html += '<td>' + (r.detail || '-') + '</td>';
+            html += '<td>' + statusHtml + '</td>';
+            html += '<td>' + (r.handler_name || '-') + '</td>';
+            html += '<td>' + (r.handle_note || '-') + '</td>';
+            html += '<td>' + r.create_at + '</td>';
+            html += '<td>' + (r.handle_at || '-') + '</td>';
+            html += '</tr>';
+        }
+        tbody.innerHTML = html;
+
+        var totalPages = Math.ceil(res.total / 20);
+        var phtml = '<span>共 ' + res.total +  ' 条</span> ';
+        if (page > 1) phtml += '<button onclick="loadReports(' + (page-1) + ')">上一页</button> ';
+        phtml += '<span>第 ' + page + '/' + totalPages + ' 页</span> ';
+        if (page < totalPages) phtml += '<button onclick="loadReports(' + (page+1) + ')">下一页</button>';
+        pagination.innerHTML = phtml;
+        currentPage = page;
+    };
+    xhr.send();
+}
+
+window.onload = function() { loadReports(1); };
+</script>
+</body>
+</html>

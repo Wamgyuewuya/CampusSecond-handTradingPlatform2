@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/user.css">
+    <style>
+        .comment-item { padding: 14px 0; border-bottom: 1px solid #f0f0f0; }
+        .comment-item:last-child { border-bottom: none; }
+        .comment-item .username { font-weight: 500; font-size: 14px; color: #4a6cf7; }
+        .comment-item .time { font-size: 12px; color: #999; margin-left: 10px; }
+        .comment-item .content { margin-top: 6px; font-size: 14px; color: #333; line-height: 1.6; }
+        .comment-form { display: flex; gap: 10px; margin-top: 12px; }
+        .comment-form input { flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
+        .comment-form input:focus { border-color: #4a6cf7; }
+    </style>
+</head>
+<body>
+
+<nav class="user-nav">
+    <div class="logo">&#x1F3EB; 校园二手</div>
+    <div class="nav-links">
+        <a href="/home">我的主页</a>
+        <a href="/goods/browse">商品浏览</a>
+        <a href="/goods/publish">发布商品</a>
+        <a href="/chat/list">消息</a>
+        <a href="/transaction/list">交易记录</a>
+        <a href="/report/list">我的举报</a>
+    </div>
+    <div class="user-info">
+        <span>{{ current_user or '游客' }}</span>
+        {% if current_user %}
+        <a href="/auth/logout">退出</a>
+        {% else %}
+        <a href="/auth/login">登录</a>
+        {% end %}
+    </div>
+</nav>
+
+<div class="page-container">
+    <div class="detail-wrap">
+        <div class="detail-img">
+            {% if goods["image"] %}
+            <img src="{{ goods["image"] }}" alt="{{ goods["title"] }}">
+            {% else %}
+            <div style="height:300px;background:#f0f2f5;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:60px;">&#x1F4F1;</div>
+            {% end %}
+        </div>
+        <div class="detail-info">
+            <h2>{{ goods["title"] }}</h2>
+            <div class="price">¥{{ "%.2f" % goods["price"] }}</div>
+            <div class="meta">
+                发布者：{{ goods["username"] }} &nbsp;|&nbsp; {{ goods["create_at"] }}
+                &nbsp;|&nbsp; 状态：
+                {% if goods["status"] == "approved" %}
+                <span style="color:#16baaa;">已审核</span>
+                {% elif goods["status"] == "pending" %}
+                <span style="color:#ffb800;">待审核</span>
+                {% else %}
+                <span style="color:#ff5722;">已拒绝</span>
+                {% end %}
+            </div>
+            <div class="desc">{{ goods["description"] or "暂无描述" }}</div>
+            <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
+                {% if current_user %}
+                <a href="/chat/{{ goods['user_id'] }}" class="btn btn-primary">联系卖家</a>
+                {% if goods['status'] == 'approved' and not is_owner and not is_purchased %}
+                <button class="btn btn-success" onclick="buyGoods({{ goods['id'] }})">立即购买</button>
+                {% elif is_purchased %}
+                <span style="display:inline-block;padding:8px 20px;background:#f0f2f5;color:#999;border-radius:8px;">已购买</span>
+                {% end %}
+                <button class="btn btn-danger" onclick="showReportForm({{ goods['id'] }}, 'goods')">举报</button>
+                {% else %}
+                <a href="/auth/login" class="btn btn-primary">登录后联系卖家</a>
+                {% end %}
+                <a href="/goods/browse" class="btn btn-outline">返回浏览</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 评论区 -->
+    <div class="card" style="margin-top:24px;">
+        <h3>商品评论 ({{ len(comments) }})</h3>
+
+        {% if current_user %}
+        <div class="comment-form">
+            <input type="text" id="comment-input" placeholder="发表评论..." onkeydown="if(event.key==='Enter')postComment();">
+            <button class="btn btn-primary" onclick="postComment();">发表</button>
+        </div>
+        {% else %}
+        <p style="color:#999;font-size:13px;margin-bottom:12px;"><a href="/auth/login">登录</a>后可以发表评论</p>
+        {% end %}
+
+        <div id="comments-list" style="margin-top:16px;">
+            {% if comments %}
+                {% for c in comments %}
+                <div class="comment-item">
+                    <span class="username">{{ c["username"] }}</span>
+                    <span class="time">{{ c["create_at"] }}</span>
+                    <div class="content">{{ c["content"] }}</div>
+                </div>
+                {% end %}
+            {% else %}
+            <p style="text-align:center;padding:30px 0;color:#999;">暂无评论，快来抢沙发吧~</p>
+            {% end %}
+        </div>
+    </div>
+</div>
+
+<!-- 举报弹窗 -->
+<div id="report-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:24px;width:400px;max-width:90%;">
+        <h3 style="margin-bottom:12px;">举报</h3>
+        <select id="report-reason" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px;">
+            <option value="">请选择举报原因</option>
+            <option value="违规商品">违规商品</option>
+            <option value="虚假信息">虚假信息</option>
+            <option value="价格欺诈">价格欺诈</option>
+            <option value="侵权">侵权</option>
+            <option value="其他">其他</option>
+        </select>
+        <textarea id="report-detail" placeholder="详细说明（选填）" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;min-height:80px;resize:vertical;box-sizing:border-box;"></textarea>
+        <div style="margin-top:12px;display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn btn-outline" onclick="closeReportForm()">取消</button>
+            <button class="btn btn-primary" onclick="submitReport()">提交举报</button>
+        </div>
+    </div>
+</div>
+
+<script>
+var reportTargetId = 0;
+var reportTargetType = '';
+
+function buyGoods(goodsId) {
+    if (!confirm('确定要购买该商品吗？')) return;
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/goods/buy', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.setRequestHeader('X-Xsrftoken', getCookie('_xsrf'));
+    xhr.onload = function() {
+        var res = JSON.parse(xhr.responseText);
+        alert(res.msg);
+        if (res.code === 0) location.reload();
+    };
+    xhr.send('goods_id=' + goodsId);
+}
+
+function showReportForm(targetId, targetType) {
+    reportTargetId = targetId;
+    reportTargetType = targetType;
+    document.getElementById('report-modal').style.display = 'flex';
+}
+
+function closeReportForm() {
+    document.getElementById('report-modal').style.display = 'none';
+}
+
+function submitReport() {
+    var reason = document.getElementById('report-reason').value;
+    var detail = document.getElementById('report-detail').value;
+    if (!reason) { alert('请选择举报原因'); return; }
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/report/create', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.setRequestHeader('X-Xsrftoken', getCookie('_xsrf'));
+    xhr.onload = function() {
+        var res = JSON.parse(xhr.responseText);
+        alert(res.msg);
+        if (res.code === 0) closeReportForm();
+    };
+    xhr.send('target_type=' + reportTargetType + '&target_id=' + reportTargetId + '&reason=' + encodeURIComponent(reason) + '&detail=' + encodeURIComponent(detail));
+}
+function getCookie(name) {
+    var r = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+    return r ? r[1] : '';
+}
+
+function postComment(){
+    var input = document.getElementById('comment-input');
+    var content = input.value.trim();
+    if (!content) return;
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/goods/comment/create', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.setRequestHeader('X-Xsrftoken', getCookie('_xsrf'));
+    xhr.onload = function(){
+        var res = JSON.parse(xhr.responseText);
+        if (res.code === 0) {
+            input.value = '';
+            loadComments();
+        } else {
+            alert(res.msg);
+        }
+    };
+    xhr.send('goods_id={{ goods["id"] }}&content=' + encodeURIComponent(content));
+}
+
+function loadComments(){
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/goods/comments?goods_id={{ goods["id"] }}', true);
+    xhr.onload = function(){
+        var res = JSON.parse(xhr.responseText);
+        var container = document.getElementById('comments-list');
+        var html = '';
+        for (var i = 0; i < res.data.length; i++){
+            var c = res.data[i];
+            html += '<div class="comment-item">';
+            html += '<span class="username">' + c.username + '</span>';
+            html += '<span class="time">' + c.create_at + '</span>';
+            html += '<div class="content">' + c.content + '</div></div>';
+        }
+        if (res.data.length === 0){
+            html = '<p style="text-align:center;padding:30px 0;color:#999;">暂无评论，快来抢沙发吧~</p>';
+        }
+        container.innerHTML = html;
+    };
+    xhr.send();
+}
+</script>
+</body>
+</html>

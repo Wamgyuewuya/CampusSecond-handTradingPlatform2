@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/lib/layui/css/layui.css">
+</head>
+<body class="layui-layout-body">
+<div class="layui-layout layui-layout-admin">
+    <!-- 顶部导航 -->
+    <div class="layui-header">
+        <div class="layui-logo" style="font-size:16px; letter-spacing:1px;">
+            校园二手交易平台 · 管理后台
+        </div>
+        <ul class="layui-nav layui-layout-right">
+            <li class="layui-nav-item">
+                <a href="javascript:;">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E"
+                         style="width:28px;height:28px;border-radius:50%;vertical-align:middle;">
+                    <span>{{ username }}</span>
+                </a>
+                <dl class="layui-nav-child">
+                    <dd><a href="/admin/logout">退出登录</a></dd>
+                </dl>
+            </li>
+        </ul>
+    </div>
+
+    <!-- 左侧菜单 -->
+    <div class="layui-side layui-bg-black">
+        <div class="layui-side-scroll">
+            <ul class="layui-nav layui-nav-tree" lay-filter="admin-nav">
+                <li class="layui-nav-item layui-nav-itemed">
+                    <a href="javascript:;">后台管理</a>
+                    <dl class="layui-nav-child">
+                        <dd><a href="/admin/dashboard/home" target="main-frame">后台首页</a></dd>
+                        <dd><a href="/admin/users" target="main-frame">用户管理</a></dd>
+                    </dl>
+                </li>
+                <li class="layui-nav-item">
+                    <a href="javascript:;">审核管理</a>
+                    <dl class="layui-nav-child">
+                        <dd><a href="/admin/goods" target="main-frame">违规商品审核</a></dd>
+                        <dd><a href="/admin/reports" target="main-frame">举报信息处理</a></dd>
+                        <dd><a href="/admin/sensitive-words" target="main-frame">敏感词管理</a></dd>
+                    </dl>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 右侧工作区 -->
+    <div class="layui-body" style="overflow:hidden;">
+        <iframe name="main-frame" src="/admin/dashboard/home" frameborder="0"
+                style="width:100%;height:100%;background:#f2f2f2;"></iframe>
+    </div>
+
+    <div class="layui-footer" style="text-align:center; font-size:12px; color:#999;">
+        &copy; 2026 XhuUniversity &middot; 校园二手交易平台管理后台
+    </div>
+</div>
+
+<script src="/static/lib/layui/layui.js"></script>
+<script>
+layui.use('element', function(){
+    var element = layui.element;
+});
+</script>
+</body>
+</html>

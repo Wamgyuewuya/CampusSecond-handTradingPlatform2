@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/lib/layui/css/layui.css">
+    <style>
+        body { padding: 15px; background: #f2f2f2; }
+        .search-box { margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="search-box">
+    <form class="layui-form" lay-filter="search-form">
+        <div class="layui-inline">
+            <select name="status" lay-filter="status-filter">
+                <option value="">全部状态</option>
+                <option value="pending">待审核</option>
+                <option value="approved">已审核</option>
+                <option value="rejected">已拒绝</option>
+            </select>
+        </div>
+    </form>
+</div>
+
+<table id="goods-table" lay-filter="goods-table"></table>
+
+<script src="/static/lib/layui/layui.js"></script>
+<script>
+function getCookie(name) {
+    var r = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+    return r ? r[1] : '';
+}
+
+layui.use(['table', 'layer', 'form'], function(){
+    var table = layui.table;
+    var layer = layui.layer;
+    var form = layui.form;
+    var $ = layui.$;
+
+    table.render({
+        elem: '#goods-table',
+        url: '/admin/api/goods',
+        page: { limit: 20 },
+        limits: [20, 50, 100],
+        where: { status: '' },
+        cols: [[
+            { type: 'numbers', title: '序号', width: 70 },
+            { field: 'id', title: 'ID', width: 60, sort: true },
+            { field: 'username', title: '发布者', width: 120 },
+            { field: 'title', title: '商品名称', minWidth: 160 },
+            { field: 'price', title: '价格', width: 90, sort: true,
+              templet: function(d){ return '¥' + d.price.toFixed(2); }
+            },
+            { field: 'status', title: '状态', width: 100, align: 'center',
+              templet: function(d){
+                  var map = { pending: '待审核', approved: '已审核', rejected: '已拒绝' };
+                  var color = { pending: '#ffb800', approved: '#16baaa', rejected: '#ff5722' };
+                  return '<span class="layui-badge" style="background:'+color[d.status]+';">'+map[d.status]+'</span>';
+              }
+            },
+            { field: 'create_at', title: '发布时间', width: 170 },
+            { title: '操作', width: 170, align: 'center',
+              templet: function(d){
+                  if (d.status !== 'pending') {
+                      return '<span style="color:#ccc;">-</span>';
+                  }
+                  return '<a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="approve">通过</a>'
+                       + '<a class="layui-btn layui-btn-xs layui-btn-warm" lay-event="reject">拒绝</a>';
+              }
+            }
+        ]],
+        response: { statusCode: 0 },
+        parseData: function(res){
+            return { code: res.code, count: res.count, data: res.data };
+        }
+    });
+
+    // 状态筛选
+    form.on('select(status-filter)', function(obj){
+        table.reload('goods-table', {
+            where: { status: obj.value },
+            page: { curr: 1 }
+        });
+    });
+
+    // 审核操作
+    table.on('tool(goods-table)', function(obj){
+        var data = obj.data;
+        var action = obj.event === 'approve' ? 'approved' : 'rejected';
+        var label = obj.event === 'approve' ? '通过' : '拒绝';
+        layer.confirm('确定' + label + '商品「' + data.title + '」吗？', function(idx){
+            $.ajax({
+                url: '/admin/api/goods/audit',
+                type: 'POST',
+                data: { id: data.id, action: action },
+                headers: { 'X-Xsrftoken': getCookie('_xsrf') },
+                success: function(res){
+                    if (res.code === 0) {
+                        layer.msg(res.msg);
+                        table.reload('goods-table');
+                    } else {
+                        layer.msg(res.msg, {icon: 5});
+                    }
+                }
+            });
+            layer.close(idx);
+        });
+    });
+});
+</script>
+</body>
+</html>

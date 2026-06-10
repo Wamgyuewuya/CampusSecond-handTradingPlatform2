@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/user.css">
+</head>
+<body>
+    <div class="auth-bg"></div>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-logo">
+                <h1>校园二手交易平台</h1>
+                <p>创建新账号</p>
+            </div>
+            {% if error %}
+            <div class="auth-error">{{ error }}</div>
+            {% end %}
+            <form class="auth-form" method="post" action="/auth/register">
+                {% module xsrf_form_html() %}
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">&#x1F464;</span>
+                        <input type="text" id="username" name="username" placeholder="2-20个字符" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">&#x1F512;</span>
+                        <input type="password" id="password" name="password" placeholder="至少6位" required>
+                    </div>
+                </div>
+                <button type="submit" class="auth-btn">注 册</button>
+            </form>
+            <div class="auth-link">
+                已有账号？<a href="/auth/login">立即登录</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

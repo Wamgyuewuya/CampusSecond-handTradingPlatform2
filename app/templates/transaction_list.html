@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/user.css">
+</head>
+<body>
+
+<nav class="user-nav">
+    <div class="logo">&#x1F3EB; 校园二手</div>
+    <div class="nav-links">
+        <a href="/home">我的主页</a>
+        <a href="/goods/browse">商品浏览</a>
+        <a href="/goods/publish">发布商品</a>
+        <a href="/chat/list">消息</a>
+        <a href="/transaction/list" style="color:#4a6cf7;font-weight:500;">交易记录</a>
+        <a href="/report/list">我的举报</a>
+    </div>
+    <div class="user-info">
+        <span>{{ username }}</span>
+        <a href="/auth/logout">退出</a>
+    </div>
+</nav>
+
+<div class="page-container">
+    <div class="card">
+        <h3>交易记录</h3>
+        {% if transactions %}
+        <table class="txn-table">
+            <tr>
+                <th>商品</th>
+                <th>卖家</th>
+                <th>买家</th>
+                <th>金额</th>
+                <th>时间</th>
+                <th>评价</th>
+            </tr>
+            {% for t in transactions %}
+            <tr>
+                <td><a href="/goods/detail/{{ t['goods_id'] }}" style="color:#4a6cf7;text-decoration:none;">{{ t["goods_title"][:10] }}{% if len(t["goods_title"]) > 10 %}...{% end %}</a></td>
+                <td>{{ t["seller_name"] }}</td>
+                <td>{{ t["buyer_name"] }}</td>
+                <td style="color:#ff5722;font-weight:600;">¥{{ "%.2f" % t["price"] }}</td>
+                <td style="font-size:13px;color:#999;">{{ t["create_at"] }}</td>
+                <td>
+                    {% if t["evaluated"] %}
+                    <span style="color:#16baaa;">已评价</span>
+                    {% else %}
+                    <button class="btn btn-primary" style="padding:4px 12px;font-size:12px;" onclick="openEval({{ t['id'] }}, '{{ t['goods_title'] }}')">评价</button>
+                    {% end %}
+                </td>
+            </tr>
+            {% end %}
+        </table>
+        {% else %}
+        <p style="text-align:center;padding:60px 0;color:#999;">暂无交易记录</p>
+        {% end %}
+    </div>
+</div>
+
+<!-- 评价弹窗 -->
+<div id="eval-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:28px;width:420px;max-width:90%;">
+        <h4 style="margin-bottom:16px;">交易评价</h4>
+        <form id="eval-form">
+            <div class="form-group">
+                <label>评分</label>
+                <div class="rating-stars" id="rating-stars" style="font-size:28px;">
+                    <span class="star" data-val="1" onclick="setRating(1)">&#9733;</span>
+                    <span class="star" data-val="2" onclick="setRating(2)">&#9733;</span>
+                    <span class="star" data-val="3" onclick="setRating(3)">&#9733;</span>
+                    <span class="star" data-val="4" onclick="setRating(4)">&#9733;</span>
+                    <span class="star" data-val="5" onclick="setRating(5)">&#9733;</span>
+                </div>
+                <input type="hidden" name="rating" id="rating-val" value="5">
+            </div>
+            <div class="form-group">
+                <label>评价内容</label>
+                <textarea name="content" placeholder="说说你的交易体验..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;min-height:80px;"></textarea>
+            </div>
+            <input type="hidden" name="transaction_id" id="eval-txn-id">
+            <div style="text-align:center;margin-top:16px;">
+                <button type="button" class="btn btn-primary" onclick="submitEval()">提交评价</button>
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('eval-modal').style.display='none';">取消</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function getCookie(name) {
+    var r = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+    return r ? r[1] : '';
+}
+
+var currentRating = 5;
+
+function openEval(txnId, goodsTitle){
+    document.getElementById('eval-txn-id').value = txnId;
+    setRating(5);
+    document.getElementById('eval-modal').style.display = 'flex';
+}
+
+function setRating(val){
+    currentRating = val;
+    document.getElementById('rating-val').value = val;
+    var stars = document.querySelectorAll('#rating-stars .star');
+    for (var i = 0; i < stars.length; i++){
+        stars[i].style.color = (i < val) ? '#ffb800' : '#ddd';
+    }
+}
+
+function submitEval(){
+    var txnId = document.getElementById('eval-txn-id').value;
+    var content = document.querySelector('textarea[name="content"]').value;
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/transaction/evaluate', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.setRequestHeader('X-Xsrftoken', getCookie('_xsrf'));
+    xhr.onload = function(){
+        var res = JSON.parse(xhr.responseText);
+        if (res.code === 0){
+            alert('评价成功！');
+            location.reload();
+        } else {
+            alert(res.msg);
+        }
+    };
+    xhr.send('transaction_id=' + txnId + '&rating=' + currentRating + '&content=' + encodeURIComponent(content));
+}
+</script>
+</body>
+</html>
