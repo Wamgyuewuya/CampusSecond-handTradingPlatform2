@@ -1,0 +1,38 @@
+|   framework.txt （当前XHAgentOS的目录及初始框架结构）
+|                
+\---XhuUniversity (智能体程序主目录)
+    |   app.py （主程序）
+    |   
+    +---app （按MVC 构建的 程序模块）
+    |   |   __init__.py
+    |   |   
+    |   +---controllers （控制层）
+    |   |       auth.py（用户登录/注册/等验证）
+    |   |       base.py（RequestHandler基类）
+    |   |       home.py（后台主页）
+    |   |       __init__.py
+    |   |       
+    |   +---models （模型层）
+    |   |       db.py（数据库模型层，数据库连接和初始化）
+    |   |       user.py（用户有关的模型）
+    |   |       __init__.py
+    |   |       
+    |   +---static  （静态资源）
+    |   |   +---css （样式文件）
+    |   |   |       base.css（公共样式）
+    |   |   |       
+    |   |   +---dist （第三方引用模块或组件：如layui/jquery/等）
+    |   |   \---js （脚本文件）
+    |   |           base.js（公共脚本）
+    |   |           
+    |   \---templates （视图层）
+    |           admin.html （后台主页）
+    |           base.html （公共视图，模板作用）
+    |           index.html （前台主页）
+    |           login.html （后台登录页）
+    |           register.html （前台注册页）
+    |           
+    +---database （数据仓库，如数据有关的输出，都放置于该目录：数据库配置/数据库文件/系统配置文件/日志/……）
+    +---docs （存放与开发有关的指导文件：提示词，开发记录，任务清单……）
+    \---venv  (虚拟空间)
+                       

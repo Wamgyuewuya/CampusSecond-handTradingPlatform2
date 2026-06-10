@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block body %}
+<h2>登录</h2>
+{% if error %}
+<div class="error">登录
+	{{ error }}
+</div>
+{% end %}
+<form method="post" action="/auth/login">
+	{% module xsrf_form_html() %}
+	<input type="text" name="username">
+	<input type="password" name="password">
+	<button>登录</button>
+</form>
+{% end %}
