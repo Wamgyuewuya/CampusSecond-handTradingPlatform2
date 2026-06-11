@@ -105,16 +105,30 @@ class GoodsFrontend:
 
     @staticmethod
     def get_comments(goods_id: int):
-        """获取某商品的所有评论"""
+        """获取某商品的所有评论（含交易评价）"""
         with get_connection() as conn:
-            rows = conn.execute(
-                """SELECT gc.*, u.username
+            # 1. 普通评论
+            comments = conn.execute(
+                """SELECT gc.*, u.username, 'comment' as src_type, NULL as rating
                    FROM goods_comments gc LEFT JOIN users u ON gc.user_id = u.id
                    WHERE gc.goods_id = ?
                    ORDER BY gc.id ASC""",
                 (goods_id,)
             ).fetchall()
-            return [dict(r) for r in rows]
+            # 2. 交易评价（通过 transactions 关联）
+            evals = conn.execute(
+                """SELECT e.*, u.username, 'evaluation' as src_type, e.rating as rating
+                   FROM evaluations e
+                   JOIN transactions t ON e.transaction_id = t.id
+                   LEFT JOIN users u ON e.user_id = u.id
+                   WHERE t.goods_id = ?
+                   ORDER BY e.id ASC""",
+                (goods_id,)
+            ).fetchall()
+            # 合并并按时间排序
+            merged = [dict(r) for r in comments] + [dict(r) for r in evals]
+            merged.sort(key=lambda x: x.get("id", 0))
+            return merged
 
     @staticmethod
     def add_comment(goods_id: int, user_id: int, content: str) -> int:

@@ -14,6 +14,8 @@
         .comment-form { display: flex; gap: 10px; margin-top: 12px; }
         .comment-form input { flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
         .comment-form input:focus { border-color: #4a6cf7; }
+        .badge-eval { display:inline-block; font-size:11px; background:#fff3e0; color:#ff9800; padding:0 6px; border-radius:3px; margin-left:6px; }
+        .rating-stars { color:#ff9800; font-size:14px; margin-left:6px; }
     </style>
 </head>
 <body>
@@ -81,7 +83,7 @@
 
     <!-- 评论区 -->
     <div class="card" style="margin-top:24px;">
-        <h3>商品评论 ({{ len(comments) }})</h3>
+        <h3>评论与评价 ({{ len(comments) }})</h3>
 
         {% if current_user %}
         <div class="comment-form">
@@ -97,8 +99,15 @@
                 {% for c in comments %}
                 <div class="comment-item">
                     <span class="username">{{ c["username"] }}</span>
+                    {% if c.get("src_type") == "evaluation" %}
+                    <span class="badge-eval">交易评价</span>
+                    <span class="rating-stars">
+                        {% for _ in range(c.get("rating", 0)) %}★{% end %}
+                        {% for _ in range(5 - c.get("rating", 0)) %}☆{% end %}
+                    </span>
+                    {% end %}
                     <span class="time">{{ c["create_at"] }}</span>
-                    <div class="content">{{ c["content"] }}</div>
+                    <div class="content">{{ c["content"] or "（该用户未填写评价内容）" }}</div>
                 </div>
                 {% end %}
             {% else %}
@@ -208,8 +217,15 @@ function loadComments(){
             var c = res.data[i];
             html += '<div class="comment-item">';
             html += '<span class="username">' + c.username + '</span>';
+            if (c.src_type === 'evaluation') {
+                html += '<span class="badge-eval">交易评价</span>';
+                html += '<span class="rating-stars">';
+                for (var s = 0; s < (c.rating || 0); s++) html += '★';
+                for (var s = (c.rating || 0); s < 5; s++) html += '☆';
+                html += '</span>';
+            }
             html += '<span class="time">' + c.create_at + '</span>';
-            html += '<div class="content">' + c.content + '</div></div>';
+            html += '<div class="content">' + (c.content || '（该用户未填写评价内容）') + '</div></div>';
         }
         if (res.data.length === 0){
             html = '<p style="text-align:center;padding:30px 0;color:#999;">暂无评论，快来抢沙发吧~</p>';
